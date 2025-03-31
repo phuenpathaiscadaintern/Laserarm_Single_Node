@@ -3,17 +3,16 @@
 #define SERVICE_UUID        "87E01439-99BE-45AA-9410-DB4D3F23EA99"
 #define CHARACTERISTIC_UUID "D90A7C02-9B21-4243-8372-3E523FA7978B"
 
-#define LED_RED   2  // กำหนดขา LED สีแดง
-#define LED_GREEN 3  // กำหนดขา LED สีเขียว
+// LED บนบอร์ด Xiao nRF52840 ใช้ขา 13
+#define LED_BUILTIN  13  
 
 BLEService customService(SERVICE_UUID);
 BLECharacteristic customCharacteristic(CHARACTERISTIC_UUID, BLERead | BLENotify, 50);
 
 void setup() {
     Serial.begin(115200);
-    
-    pinMode(LED_RED, OUTPUT);
-    pinMode(LED_GREEN, OUTPUT);
+
+    pinMode(LED_BUILTIN, OUTPUT);
 
     if (!BLE.begin()) {
         Serial.println("Starting BLE failed!");
@@ -30,7 +29,7 @@ void setup() {
     BLE.advertise();
     Serial.println("Advertising started...");
 
-    // เริ่มต้นให้ไฟแดงกระพริบเพื่อบอกว่ากำลังโฆษณา
+    // ไฟแดงกระพริบเมื่อรอโฆษณา BLE
     flashRed();
 }
 
@@ -41,8 +40,7 @@ void loop() {
         Serial.print("Connected to: ");
         Serial.println(central.address());
 
-        digitalWrite(LED_RED, LOW);   // ปิดไฟแดง
-        digitalWrite(LED_GREEN, HIGH); // เปิดไฟเขียว
+        setGreen(); // เปลี่ยนเป็นไฟเขียวเมื่อเชื่อมต่อแล้ว
 
         while (central.connected()) {
             customCharacteristic.setValue("Hello world updated!");
@@ -50,18 +48,22 @@ void loop() {
         }
 
         Serial.println("Disconnected!");
-
-        // เมื่อหลุดการเชื่อมต่อ ให้กลับไปกระพริบไฟแดง
-        flashRed();
+        flashRed(); // กลับไปกระพริบไฟแดงเมื่อหลุดการเชื่อมต่อ
     }
 }
 
 // ฟังก์ชันให้ไฟแดงกระพริบ
 void flashRed() {
     while (!BLE.connected()) {
-        digitalWrite(LED_RED, HIGH);
+        analogWrite(LED_BUILTIN, 255); // ไฟแดง
         delay(500);
-        digitalWrite(LED_RED, LOW);
+        analogWrite(LED_BUILTIN, 0);   // ปิดไฟ
         delay(500);
     }
+}
+
+// ฟังก์ชันเปลี่ยนเป็นไฟสีเขียว
+void setGreen() {
+    analogWrite(LED_BUILTIN, 0); // ปิดไฟแดง
+    // Xiao nRF52840 ไม่มีไฟเขียวโดยตรง อาจต้องใช้ค่าลดแสงแดงให้เป็นสีเขียวมากขึ้น
 }
