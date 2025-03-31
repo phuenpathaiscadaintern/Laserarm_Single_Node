@@ -12,6 +12,9 @@ BLECharacteristic customCharacteristic(CHARACTERISTIC_UUID, BLERead | BLEWrite |
 
 void setup() {
     Serial.begin(115200);
+    while (!Serial);  // รอ Serial พร้อมก่อนดำเนินการต่อ
+    Serial.println("Starting Slave Node...");
+
     pinMode(LED_RED, OUTPUT);
     pinMode(LED_GREEN, OUTPUT);
     digitalWrite(LED_RED, LOW);
@@ -44,6 +47,7 @@ void loop() {
         setGreen();
 
         while (central.connected()) {
+            Serial.println("Sending: Hello world updated!");
             customCharacteristic.setValue("Hello world updated!");
             delay(1000);
         }
@@ -55,7 +59,8 @@ void loop() {
 }
 
 void flashRed() {
-    for (int i = 0; i < 6; i++) {  // กระพริบ 3 ครั้ง แล้วหยุด
+    Serial.println("Flashing RED LED...");
+    for (int i = 0; i < 6; i++) {  
         digitalWrite(LED_RED, HIGH);
         delay(500);
         digitalWrite(LED_RED, LOW);
@@ -64,11 +69,13 @@ void flashRed() {
 }
 
 void setGreen() {
+    Serial.println("Connected! Turning GREEN LED ON...");
     digitalWrite(LED_RED, LOW);
     digitalWrite(LED_GREEN, HIGH);
 }
 
 void setRed() {
+    Serial.println("Disconnected! Turning RED LED ON...");
     digitalWrite(LED_GREEN, LOW);
     digitalWrite(LED_RED, HIGH);
 }
