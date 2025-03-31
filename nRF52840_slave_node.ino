@@ -14,13 +14,7 @@ void setup() {
     while (!Serial);  // รอ Serial พร้อมก่อนดำเนินการต่อ
     Serial.println("Starting Slave Node...");
 
-    pinMode(LED_RED, OUTPUT);
-    pinMode(LED_GREEN, OUTPUT);
-
-    pinMode(LED_RED, OUTPUT);
-    pinMode(LED_GREEN, OUTPUT);
-    digitalWrite(LED_RED, LOW);
-    digitalWrite(LED_GREEN, LOW);
+    pinMode(LED_BUILTIN, OUTPUT);
 
     if (!BLE.begin()) {
         Serial.println("Failed to start BLE!");
@@ -34,6 +28,8 @@ void setup() {
 
     customCharacteristic.setValue("Hello world");
 
+    Serial.print("Advertising Service UUID: ");
+    Serial.println(SERVICE_UUID);
     BLE.advertise();
     Serial.println("BLE Advertising started...");
 
@@ -62,15 +58,14 @@ void loop() {
 void flashRed() {
     Serial.println("Flashing RED LED...");
     while(!BLE.connected()) {
-      analogWrite(LED_RED,255);
-      delay(500);
-      analogWrite(LED_RED,0);
-      delay(500);
+        analogWrite(LED_BUILTIN, 255);
+        delay(500);
+        analogWrite(LED_BUILTIN, 0);
+        delay(500);
     }
 }
 
 void setGreen() {
     Serial.println("Connected! Turning GREEN LED ON...");
-    analogWrite(LED_RED, LOW);
-    analogWrite(LED_GREEN, HIGH);
+    analogWrite(LED_BUILTIN, LOW);
 }
