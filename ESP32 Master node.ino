@@ -1,62 +1,74 @@
-#include <ArduinoBLE.h>  // ย้ายไปไว้ที่บรรทัดแรกสุดของโค้ด
+#include <ArduinoBLE.h>
 
 #define SERVICE_UUID        "87E01439-99BE-45AA-9410-DB4D3F23EA99"
-#define CHARACTERISTIC_UUID "D90A7C02-9B21-4243-8372-3E523FA7978B"
+#define UUID_CHARACTERISTIC "12345678-1234-5678-1234-56789ABCDEF0"
 
 BLEDevice peripheral;
 BLECharacteristic characteristic;
+BLECharacteristic uuidCharacteristic;
 bool isConnected = false;
+String targetCharacteristicUUID = "";
 
 void TaskBLEScan(void *pvParameters) {
     Serial.println("Scanning for BLE device...");
     BLE.scan();  // Start scanning
     
-    while (!isConnected) {
+    unsigned long startTime = millis();
+    while (!isConnected && millis() - startTime < 20000) {
         BLEDevice foundDevice = BLE.available();
         if (foundDevice) {
             Serial.println("Found BLE Device: " + String(foundDevice.address()));
-            BLE.stopScan();  // Stop scan when device found
-            
-            Serial.println("Listing available services:");
-            for (int i = 0; i < foundDevice.serviceCount(); i++) {
-                BLEService service = foundDevice.service(i);
-                Serial.println("Service UUID: " + String(service.uuid()));
-            }
+            BLE.stopScan();
             
             Serial.println("Trying to connect...");
-            for (int attempt = 0; attempt < 5 && !isConnected; attempt++) {
-                Serial.print("Attempt ");
-                Serial.print(attempt + 1);
-                Serial.println(" to connect...");
-                
-                if (foundDevice.connect()) {
-                    Serial.println("Connected to device!");
-                    peripheral = foundDevice;
-                    characteristic = peripheral.characteristic(CHARACTERISTIC_UUID);
-                    isConnected = peripheral.connected();
+            if (foundDevice.connect()) {
+                Serial.println("Connected to device!");
+                peripheral = foundDevice;
+                isConnected = true;
+
+                Serial.println("Discovering services...");
+                if (peripheral.discoverAttributes()) {
+                    Serial.println("Services discovered!");
                     
-                    if (isConnected) {
-                        Serial.println("Successfully connected!");
-                        if (characteristic) {
-                            Serial.println("Found characteristic!");
-                        } else {
-                            Serial.println("Characteristic not found!");
+                    Serial.println("Reading UUID Characteristic...");
+                    for (int i = 0; i < peripheral.characteristicCount(); i++) {
+                        BLECharacteristic chara = peripheral.characteristic(i);
+                        if (chara.uuid() == UUID_CHARACTERISTIC) {
+                            char buffer[50] = {0};  
+                            int length = chara.readValue(buffer, sizeof(buffer) - 1);
+                            buffer[length] = '\0'; 
+                            targetCharacteristicUUID = String(buffer);
+                            Serial.println("Received Target Characteristic UUID: " + targetCharacteristicUUID);
                         }
-                    } else {
-                        Serial.println("Connection lost immediately, retrying...");
+                    }
+
+                    Serial.println("Listing available Characteristics:");
+                    for (int i = 0; i < peripheral.characteristicCount(); i++) {
+                        BLECharacteristic chara = peripheral.characteristic(i);
+                        Serial.println("Characteristic UUID: " + String(chara.uuid()));
+
+                        if (String(chara.uuid()) == targetCharacteristicUUID) {
+                            characteristic = chara;
+                            Serial.println("✅ Found target characteristic!");
+                        }
+                    }
+
+                    if (!characteristic) {
+                        Serial.println("❌ Target Characteristic not found!");
                     }
                 } else {
-                    Serial.println("Connection failed. Retrying...");
-                    delay(2000);
+                    Serial.println("Failed to discover services.");
                 }
+            } else {
+                Serial.println("Connection failed. Retrying...");
+                delay(2000);
             }
         }
-        delay(500);
+        vTaskDelay(10);  // เพิ่ม delay ให้กับ watchdog timer
     }
-    Serial.println("BLE connection established, ending scan task.");
+    Serial.println("BLE connection established.");
     vTaskDelete(NULL);
 }
-
 
 void setup() {
     Serial.begin(115200);
@@ -71,7 +83,7 @@ void setup() {
     xTaskCreatePinnedToCore(
         TaskBLEScan,
         "BLEScan",
-        4096,
+        8192,  // เพิ่ม Stack Size
         NULL,
         1,
         NULL,
@@ -82,10 +94,10 @@ void setup() {
 void loop() {
     if (isConnected && peripheral.connected() && characteristic) {
         if (characteristic.canRead()) {
-            char buffer[50] = {0};
+            char buffer[50] = {0};  
             int length = characteristic.readValue(buffer, sizeof(buffer) - 1);
-            buffer[length] = '\0';
-            
+            buffer[length] = '\0'; 
+
             Serial.print("Received: ");
             Serial.println(buffer);
         }
@@ -96,12 +108,12 @@ void loop() {
         xTaskCreatePinnedToCore(
             TaskBLEScan,
             "BLEScan",
-            4096,
+            8192,  // เพิ่ม Stack Size
             NULL,
             1,
             NULL,
             0
         );
     }
-    delay(1000);
+    delay(1000);  // ป้องกัน Watchdog
 }
