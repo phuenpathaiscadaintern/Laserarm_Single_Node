@@ -5,17 +5,27 @@
 #define COUNTER_ALL_UUID    "A1B2C3D4-E5F6-7890-1234-56789ABCDEF0"
 #define COUNTER_ACC_UUID    "B2C3D4E5-F678-9012-3456-789ABCDEF012"
 #define SOUND_LEVEL_UUID    "C3D4E5F6-7890-1234-5678-9ABCDEF01234"
+#define SOUND_THRESHOLD_UUID "D4E5F678-9012-3456-789A-BCDEF0123456"
 
 BLEService customService(SERVICE_UUID);
 BLECharacteristic shootCharacteristic(SHOOT_CHARACTERISTIC_UUID, BLERead | BLENotify, 1);
 BLECharacteristic counterAllCharacteristic(COUNTER_ALL_UUID, BLERead | BLENotify, sizeof(int));
 BLECharacteristic counterAccCharacteristic(COUNTER_ACC_UUID, BLERead | BLENotify | BLEWrite, sizeof(int));
 BLECharacteristic soundLevelCharacteristic(SOUND_LEVEL_UUID, BLERead | BLENotify, sizeof(int));
+BLECharacteristic soundThresholdCharacteristic(SOUND_THRESHOLD_UUID, BLERead | BLEWrite, sizeof(int));
 
 const int MIC_PIN = A0;
-const int SOUND_THRESHOLD = 100;
+int SOUND_THRESHOLD = 100;  // ค่าเริ่มต้น
 int counterAll = 0;
 int counterAcc = 0;
+
+void onThresholdWrite(BLEDevice central, BLECharacteristic characteristic) {
+    int newThreshold = 0;
+    characteristic.readValue(&newThreshold, sizeof(newThreshold));
+    SOUND_THRESHOLD = newThreshold;
+    Serial.print("🔧 SOUND_THRESHOLD updated to: ");
+    Serial.println(SOUND_THRESHOLD);
+}
 
 void setup() {
     Serial.begin(115200);
@@ -29,16 +39,22 @@ void setup() {
 
     BLE.setLocalName("XIAO nRF52840");
     BLE.setAdvertisedService(customService);
+    
     customService.addCharacteristic(shootCharacteristic);
     customService.addCharacteristic(counterAllCharacteristic);
     customService.addCharacteristic(counterAccCharacteristic);
     customService.addCharacteristic(soundLevelCharacteristic);
+    customService.addCharacteristic(soundThresholdCharacteristic);
+
     BLE.addService(customService);
 
     shootCharacteristic.setValue("0");
     counterAllCharacteristic.setValue((byte*)&counterAll, sizeof(counterAll));
     counterAccCharacteristic.setValue((byte*)&counterAcc, sizeof(counterAcc));
     soundLevelCharacteristic.setValue((byte*)&counterAll, sizeof(counterAll));
+    soundThresholdCharacteristic.setValue((byte*)&SOUND_THRESHOLD, sizeof(SOUND_THRESHOLD));
+
+    soundThresholdCharacteristic.setEventHandler(BLEWritten, onThresholdWrite);
 
     BLE.advertise();
     Serial.println("📡 Advertising BLE Service...");
