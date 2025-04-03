@@ -5,6 +5,7 @@
 #define COUNTER_ALL_UUID    "A1B2C3D4-E5F6-7890-1234-56789ABCDEF0"
 #define COUNTER_ACC_UUID    "B2C3D4E5-F678-9012-3456-789ABCDEF012"
 #define SOUND_LEVEL_UUID    "C3D4E5F6-7890-1234-5678-9ABCDEF01234"
+#define SOUND_THRESHOLD_UUID "D4E5F678-9012-3456-789A-BCDEF0123456"
 
 #define TARGET_ADDRESS      "54:91:e9:a3:b9:b8"
 #define LED 23
@@ -14,7 +15,9 @@ BLECharacteristic shootCharacteristic;
 BLECharacteristic counterAllCharacteristic;
 BLECharacteristic counterAccCharacteristic;
 BLECharacteristic soundLevelCharacteristic;
+BLECharacteristic soundThresholdCharacteristic;
 bool isConnected = false;
+int SOUND_THRESHOLD = 100;
 
 void TaskBLEScan(void *pvParameters) {
     Serial.println("🔍 Scanning for BLE device...");
@@ -48,11 +51,7 @@ void TaskBLEScan(void *pvParameters) {
                     counterAllCharacteristic = foundService.characteristic(COUNTER_ALL_UUID);
                     counterAccCharacteristic = foundService.characteristic(COUNTER_ACC_UUID);
                     soundLevelCharacteristic = foundService.characteristic(SOUND_LEVEL_UUID);
-
-                    if (!shootCharacteristic || !counterAllCharacteristic || !counterAccCharacteristic || !soundLevelCharacteristic) {
-                        Serial.println("❌ Some characteristics are missing!");
-                        return;
-                    }
+                    soundThresholdCharacteristic = foundService.characteristic(SOUND_THRESHOLD_UUID);
 
                     Serial.println("🔗 BLE connection established.");
                     BLE.stopScan();
@@ -108,11 +107,16 @@ void loop() {
             Serial.print("🔊 Sound Level: ");
             Serial.println(soundLevel);
         }
-    } else if (isConnected && !peripheral.connected()) {
-        Serial.println("🔄 Disconnected! Restarting scan...");
-        isConnected = false;
-        BLE.begin();
-        xTaskCreatePinnedToCore(TaskBLEScan, "BLEScan", 8192, NULL, 1, NULL, 1);
+
+        if (Serial.available()) {
+            int newThreshold = Serial.parseInt();
+            if (newThreshold > 0) {
+                SOUND_THRESHOLD = newThreshold;
+                soundThresholdCharacteristic.writeValue(SOUND_THRESHOLD);
+                Serial.print("📡 Sent new SOUND_THRESHOLD: ");
+                Serial.println(SOUND_THRESHOLD);
+            }
+        }
     }
     delay(1000);
 }
